@@ -41,9 +41,14 @@ int main() {
 	
 	printf("Server is now listening for connections.\n");
 	
-	clients[0] = client_thread ((void *) accept(stream_socket, (struct sockaddr*) &client_address, &client_length));
+	for(int i = 0; i < MAX_CLIENTS; i++) {
+		int client_socket = accept(stream_socket, (struct sockaddr*) &client_address, &client_length);
+		pthread_create(&clients[i], NULL, client_thread, (void *) client_socket);
+	}
 	
-	pthread_join(clients[0], NULL);
+	for(int i = 0; i < MAX_CLIENTS; i++) {
+		pthread_join(clients[i], NULL);
+	}
 	
 	close(stream_socket);
 	
