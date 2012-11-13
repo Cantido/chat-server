@@ -38,11 +38,11 @@ int main() {
 	
 	printf("Server is now listening for connections.\n");
 	
-	clientSocket = accept(streamSocket, (struct sockaddr*) &clientAddress, clientLength);
+	clientSocket = accept(streamSocket, (struct sockaddr*) &clientAddress, &clientLength);
 	
 	printf("Server has accepted a connection.\n");
 	
-	while((charsRead = read(clientSocket, buf, sizeof(buf))) != 0) {
+	while((charsRead = read(clientSocket, buf, sizeof(buf))) > 0) {
 		printf("Server recieved: %s\n", buf);
 		write(clientSocket, buf, charsRead);
 	}

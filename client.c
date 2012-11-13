@@ -33,7 +33,10 @@ int main() {
 	
 	streamSocket = socket(AF_INET, SOCK_STREAM, 0);
 	
-	connect(streamSocket, (struct sockaddr*) &serverAddress, serverLength);
+	if(connect(streamSocket, (struct sockaddr*) &serverAddress, serverLength) == -1) {
+		perror("Client: connect failed");
+		exit(1);
+	}
 	
 	printf("Client has connected to the server.\n");
 	
