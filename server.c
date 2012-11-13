@@ -1,9 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
+#include <pthread.h>
+#include <signal.h>
 
 /* socket()
  * bind()
@@ -16,41 +19,50 @@
 
 #define SERVER_PORT 9999
 #define SERVER_HOST "localhost"
+#define MAX_CLIENTS 10
+
+void *client_thread(void *arg);
 
 int main() {
-	int streamSocket;
-	int clientSocket;
+	int stream_socket;
+	pthread_t clients[MAX_CLIENTS];
 	
-	struct sockaddr_in serverAddress = { AF_INET, htons(SERVER_PORT) };
-	struct sockaddr_in clientAddress = { AF_INET };
+	struct sockaddr_in server_address = { AF_INET, htons(SERVER_PORT) };
+	struct sockaddr_in client_address = { AF_INET };
 	
-	int serverLength = sizeof(serverAddress);
-	int clientLength = sizeof(clientAddress);
+	int server_length = sizeof(server_address);
+	int client_length = sizeof(client_address);
 	
-	char buf[512];
-	int charsRead;
+	stream_socket = socket(AF_INET, SOCK_STREAM, 0);
 	
-	streamSocket = socket(AF_INET, SOCK_STREAM, 0);
+	bind(stream_socket, (struct sockaddr *) &server_address, server_length);
 	
-	bind(streamSocket, (struct sockaddr *) &serverAddress, serverLength);
-	
-	listen(streamSocket, 1);
+	listen(stream_socket, MAX_CLIENTS);
 	
 	printf("Server is now listening for connections.\n");
 	
-	clientSocket = accept(streamSocket, (struct sockaddr*) &clientAddress, &clientLength);
+	clients[0] = client_thread ((void *) accept(stream_socket, (struct sockaddr*) &client_address, &client_length));
+	
+	pthread_join(clients[0], NULL);
+	
+	close(stream_socket);
+	
+	return(0);
+}
+
+// params: int from accept()
+
+void *client_thread (void *arg) {
 	
 	printf("Server has accepted a connection.\n");
 	
-	while((charsRead = read(clientSocket, buf, sizeof(buf))) > 0) {
+	char buf[512];
+	int chars_read;
+	
+	int socket = (int) arg;
+	
+	while((chars_read = read(socket, buf, sizeof(buf))) > 0) {
 		printf("Server recieved: %s\n", buf);
-		write(clientSocket, buf, charsRead);
+		write(socket, buf, chars_read);
 	}
-	
-	close(clientSocket);
-	close(streamSocket);
-	
-	unlink(serverAddress.sin_addr);
-	
-	return(0);
 }
