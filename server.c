@@ -19,15 +19,28 @@
  * close()
  */
 
+#define DEBUG 1
+
+#ifdef DEBUG
+	#define DPRINT(x) printf(x);
+#else
+	#define DPRINT(x)
+#endif
+ 
 #define SERVER_PORT 9999
 #define SERVER_HOST "localhost"
 #define MAX_CLIENTS 10
 
 void *client_thread(void *arg);
 
+struct client {
+	pthread_t tid;
+	struct client *next;
+	struct client *previous;
+};
+
 int main() {
 	int stream_socket;
-	pthread_t clients[MAX_CLIENTS];
 	
 	struct sockaddr_in server_address = { AF_INET, htons(SERVER_PORT) };
 	struct sockaddr_in client_address = { AF_INET };
@@ -37,6 +50,7 @@ int main() {
 	
 	int num_clients = 0;
 	int server_running = 1;
+	struct client *stack_head = NULL;
 	
 	stream_socket = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
 	
@@ -51,7 +65,31 @@ int main() {
 		int client_socket = accept(stream_socket, (struct sockaddr*) &client_address, &client_length);
 		
 		if (client_socket > 0) {
-			pthread_create(&clients[num_clients++], NULL, client_thread, (void *) client_socket);
+			struct client *temp = stack_head;
+			struct client *previous = NULL;
+			
+			while(temp != NULL) {
+				DPRINT("Scanning client list...\n");
+				
+				previous = temp;
+				temp = temp->next;
+			}
+			DPRINT("Done scanning list.\n");
+			
+			temp = (struct client *) malloc(sizeof(struct client));
+			
+			DPRINT("Malloc'd new member.\n");
+			
+			if(previous != NULL) {
+				previous->next = temp;
+				DPRINT("Assigned previous\n");
+			}
+			
+			
+			temp->previous = previous;
+			DPRINT("Assigned previous & next values\n");
+			
+			pthread_create(&(temp->tid), NULL, client_thread, (void *) client_socket);
 		}
 	}
 	
