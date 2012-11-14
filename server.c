@@ -35,8 +35,8 @@ void *client_thread(void *arg);
 
 struct client {
 	pthread_t tid;
-	struct client *next;
-	struct client *previous;
+	int socket;
+	int alive; // 1 if the thread is still running, else 0
 };
 
 int main() {
@@ -50,7 +50,9 @@ int main() {
 	
 	int num_clients = 0;
 	int server_running = 1;
-	struct client *stack_head = NULL;
+	struct client *clients[MAX_CLIENTS] = { NULL };
+	
+	/* establish the socket */
 	
 	stream_socket = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
 	
@@ -58,40 +60,45 @@ int main() {
 	
 	listen(stream_socket, MAX_CLIENTS);
 	
+	/* MAIN LOOP : Accept connections, spawn threads for connections, etc */
+	
 	printf("Server is now listening for connections.\n");
 	
 	
 	while ((server_running == 1) && (num_clients <= 10)) {
+		/* remember that stream_socket has been made non-blocking */
 		int client_socket = accept(stream_socket, (struct sockaddr*) &client_address, &client_length);
 		
+		/* if we accepted a connection, spawn the thread */
 		if (client_socket > 0) {
-			struct client *temp = stack_head;
-			struct client *previous = NULL;
+			for(int i = 0; i < MAX_CLIENTS; i++) {
+				if(clients[i] == NULL) {
+					clients[i] = (struct client *) malloc(sizeof(struct client));
+					DPRINT("Malloc'd new member.\n");
+					
+					clients[i]->alive = 1;
+					clients[i]->socket = client_socket;
 			
-			while(temp != NULL) {
-				DPRINT("Scanning client list...\n");
+					pthread_create(&(clients[i]->tid), NULL, client_thread, (void *) clients[i]);
 				
-				previous = temp;
-				temp = temp->next;
+					break;
+				}
 			}
-			DPRINT("Done scanning list.\n");
-			
-			temp = (struct client *) malloc(sizeof(struct client));
-			
-			DPRINT("Malloc'd new member.\n");
-			
-			if(previous != NULL) {
-				previous->next = temp;
-				DPRINT("Assigned previous\n");
+		}
+		
+		/* END accepted new connection */
+		
+		for(int i = 0; i < MAX_CLIENTS; i++) {
+			if((clients[i] != NULL) && (clients[i]->alive == 0)) {
+				printf("Client %d has disconnected.\n", i);
+				pthread_join(clients[i]->tid, NULL);
+				free(clients[i]);
+				clients[i] = NULL;
 			}
-			
-			
-			temp->previous = previous;
-			DPRINT("Assigned previous & next values\n");
-			
-			pthread_create(&(temp->tid), NULL, client_thread, (void *) client_socket);
 		}
 	}
+	
+	printf("Server shutting down.\n");
 	
 	close(stream_socket);
 	
@@ -107,7 +114,7 @@ void *client_thread (void *arg) {
 	char buf[512];
 	int chars_read;
 	
-	int socket = (int) arg;
+	int socket = ((struct client *) arg)->socket;
 	
 	fcntl(socket, F_SETFL, ~O_NONBLOCK);
 	
@@ -117,4 +124,7 @@ void *client_thread (void *arg) {
 	}
 	
 	printf("Thread exiting.\n");
+	((struct client *) arg)->alive = 0;
+	
+	return NULL;
 }
