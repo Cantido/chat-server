@@ -7,6 +7,8 @@
 #include <netdb.h>
 #include <pthread.h>
 #include <signal.h>
+#include <errno.h>
+#include <fcntl.h>
 
 /* socket()
  * bind()
@@ -33,7 +35,10 @@ int main() {
 	int server_length = sizeof(server_address);
 	int client_length = sizeof(client_address);
 	
-	stream_socket = socket(AF_INET, SOCK_STREAM, 0);
+	int num_clients = 0;
+	int server_running = 1;
+	
+	stream_socket = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
 	
 	bind(stream_socket, (struct sockaddr *) &server_address, server_length);
 	
@@ -41,13 +46,13 @@ int main() {
 	
 	printf("Server is now listening for connections.\n");
 	
-	for(int i = 0; i < MAX_CLIENTS; i++) {
-		int client_socket = accept(stream_socket, (struct sockaddr*) &client_address, &client_length);
-		pthread_create(&clients[i], NULL, client_thread, (void *) client_socket);
-	}
 	
-	for(int i = 0; i < MAX_CLIENTS; i++) {
-		pthread_join(clients[i], NULL);
+	while ((server_running == 1) && (num_clients <= 10)) {
+		int client_socket = accept(stream_socket, (struct sockaddr*) &client_address, &client_length);
+		
+		if (client_socket > 0) {
+			pthread_create(&clients[num_clients++], NULL, client_thread, (void *) client_socket);
+		}
 	}
 	
 	close(stream_socket);
@@ -66,8 +71,12 @@ void *client_thread (void *arg) {
 	
 	int socket = (int) arg;
 	
+	fcntl(socket, F_SETFL, ~O_NONBLOCK);
+	
 	while((chars_read = read(socket, buf, sizeof(buf))) > 0) {
 		printf("Server recieved: %s\n", buf);
 		write(socket, buf, chars_read);
 	}
+	
+	printf("Thread exiting.\n");
 }
