@@ -32,6 +32,8 @@
 #define MAX_CLIENTS 10
 
 void *client_thread(void *arg);
+void handler(int signum);
+int server_running = 1;
 
 struct client {
 	pthread_t tid;
@@ -49,8 +51,9 @@ int main() {
 	int client_length = sizeof(client_address);
 	
 	int num_clients = 0;
-	int server_running = 1;
 	struct client *clients[MAX_CLIENTS] = { NULL };
+	
+	signal(SIGINT, handler);
 	
 	/* establish the socket */
 	
@@ -74,8 +77,6 @@ int main() {
 			for(int i = 0; i < MAX_CLIENTS; i++) {
 				if(clients[i] == NULL) {
 					clients[i] = (struct client *) malloc(sizeof(struct client));
-					DPRINT("Malloc'd new member.\n");
-					
 					clients[i]->alive = 1;
 					clients[i]->socket = client_socket;
 			
@@ -87,6 +88,8 @@ int main() {
 		}
 		
 		/* END accepted new connection */
+		
+		/* Scan for clients that have disconnected (set alive = 0); */
 		
 		for(int i = 0; i < MAX_CLIENTS; i++) {
 			if((clients[i] != NULL) && (clients[i]->alive == 0)) {
@@ -104,8 +107,6 @@ int main() {
 	
 	return(0);
 }
-
-// params: int from accept()
 
 void *client_thread (void *arg) {
 	
@@ -127,4 +128,11 @@ void *client_thread (void *arg) {
 	((struct client *) arg)->alive = 0;
 	
 	return NULL;
+}
+
+void handler(int signum) {
+	if(signum == SIGINT) {
+		printf("Caught SIGINT.\n");
+		server_running = 0;
+	}	
 }
