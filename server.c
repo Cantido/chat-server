@@ -11,19 +11,11 @@
 #include <fcntl.h>
 #include <semaphore.h>
 #include <stdarg.h>
-
-/* socket()
- * bind()
- * listen()
- * accept()
- * -> clients connect() now
- * read & write
- * close()
- */
  
 #define SERVER_PORT 9999
 #define SERVER_HOST "localhost"
 #define MAX_CLIENTS 10
+#define SHUTDOWN_WAIT 0
 
 void *client_thread(void *arg);
 void handler(int signum);
@@ -95,9 +87,20 @@ int main() {
 	return(0);
 }
 
+/* client_thread
+ *
+ * Desc: reads to & writes from clients. One thread reads from one client but prints to all clients.
+ *
+ * Parameters: arg: a pointer to a struct client
+ *
+ * Returns: nothing
+ *
+ */
+ 
 void *client_thread (void *arg) {
 	
 	char buf[BUFSIZ];
+	char user_name[BUFSIZ];
 	int chars_read;
 	
 	int index = *((int *) arg);
@@ -107,19 +110,19 @@ void *client_thread (void *arg) {
 	int thread_socket = clients[index]->socket;
 	sem_post(&client_array_sem);
 	
-	print_to_all("User %d has connected.\n", index);
+	read(thread_socket, user_name, BUFSIZ);
 	
-	/* The strings sent by the client are already terminated with newlines */
+	print_to_all("* %s has connected. *\n", user_name);
 	
 	while((chars_read = read(thread_socket, buf, BUFSIZ)) > 0) {
 		char user_says[BUFSIZ];
 		
-		sprintf(user_says, "User %d: %s", index, buf);
+		sprintf(user_says, "%s: %s\n", user_name, buf);
 		
 		print_to_all(user_says);
 	}
 	
-	print_to_all("User %d disconnected.\n", index);
+	print_to_all("* %s has disconnected. *\n", user_name, index);
 	
 	sem_wait(&client_array_sem);
 	free(clients[index]);
@@ -129,16 +132,27 @@ void *client_thread (void *arg) {
 	return NULL;
 }
 
+/* handler
+ *
+ * Desc: signal handler
+ *
+ * Parameters: signal: the number of the signal to handle (SIGINT == 11)
+ *
+ * Side-effects: Shuts down the server after a time defined by SHUTDOWN_WAIT
+ *
+ * Returns: nothing
+ *
+ */
+
 void handler(int signum) {
-	time_t time_to_wait = 0;
 	
 	if(signum == SIGINT) {
 		printf("Caught SIGINT. Shutting down server.\n");
 	}
 	
-	print_to_all ("Server will shut down in %d seconds.\n", time_to_wait);
+	print_to_all ("Server will shut down in %d seconds.\n", SHUTDOWN_WAIT);
 	
-	sleep(time_to_wait);
+	sleep(SHUTDOWN_WAIT);
 	
 	sem_wait(&client_array_sem);
 	for(int i = 0; i < MAX_CLIENTS; i++) {
@@ -153,6 +167,20 @@ void handler(int signum) {
 	
 	exit(0);
 }
+
+
+/* print_to_all
+ *
+ * Desc: Prints a formatted string to all connected clients and to the server stdout.
+ *       Behaves exactly like print_to_clients except this also prints to the server stdout.
+ *		 This and print_to_clients behave exactly like printf, except they print to connected clients.
+ *
+ * Parameters: format: formatted string like in printf
+ *             ...   : token values, like in printf
+ *
+ * Returns: nothing
+ *
+ */
 
 void print_to_all (const char* format, ...) {
 	char buf[BUFSIZ];
@@ -172,6 +200,19 @@ void print_to_all (const char* format, ...) {
 	}
 	sem_post(&client_array_sem);
 }
+
+/* print_to_clients
+ *
+ * Desc: Prints a formatted string to all connected clients..
+ *       Behaves exactly like print_to_all except this this doesn't print to to the server stdout.
+ *		 This and print_to_all behave exactly like printf, except they print to connected clients.
+ *
+ * Parameters: format: formatted string like in printf
+ *             ...   : token values, like in printf
+ *
+ * Returns: nothing
+ *
+ */
 
 void print_to_clients (const char* format, ...) {
 	char buf[BUFSIZ];
