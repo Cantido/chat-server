@@ -4,6 +4,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
+#include <pthread.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -20,9 +21,8 @@ int main() {
 	struct hostent *hp;
 	
 	/* other technical variables */
-	int tid;
+	pthread_t tid;
 	char buf[BUFSIZ];
-	int chars_read;
 	
 	/* variables for pretty menus and error checking */
 	unsigned char verify = 'n';
@@ -113,7 +113,7 @@ int main() {
 	
 	/* tear down */
 	
-	pthread_cancel(tid);
+	pthread_cancel((pthread_t) tid);
 	pthread_join(tid, NULL);
 	
 	printf("Disconnected from server. Exiting program.\n");
@@ -142,8 +142,7 @@ void *read_from_server(void *arg) {
 	
 	printf("The server has disconnected.\n");
 
-	exit_group(0);
-	return NULL;
+	exit(EXIT_SUCCESS);
 }
 
 /* handler
