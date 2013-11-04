@@ -38,8 +38,8 @@ int main() {
 	struct sockaddr_in server_address = { AF_INET, htons(SERVER_PORT) };
 	struct sockaddr_in client_address = { AF_INET };
 	
-	int server_length = sizeof(server_address);
-	int client_length = sizeof(client_address);
+	socklen_t server_length = (socklen_t) sizeof(server_address);
+	socklen_t client_length = (socklen_t) sizeof(client_address);
 	
 	signal(SIGINT, handler);
 	
@@ -190,7 +190,7 @@ void print_to_all (const char* format, ...) {
 	vsprintf(buf, format, args);
 	va_end(args);
 	
-	printf(buf); // this is the only difference between this and print_to_clients
+	printf("%s", buf); // this is the only difference between this and print_to_clients
 	
 	sem_wait(&client_array_sem);
 	for(int i = 0; i < MAX_CLIENTS; i++) {
