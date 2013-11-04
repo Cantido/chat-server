@@ -1,5 +1,6 @@
 CC = gcc
-CFLAGS = -Wall -std=gnu99 -lpthread
+CFLAGS = -Wall -std=gnu99
+LDLIBS = -lpthread
 
 all: client server
 
