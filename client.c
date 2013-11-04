@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <signal.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -137,7 +138,7 @@ void *read_from_server(void *arg) {
 	int chars_read;
 	int stream_socket = *((int *) arg);
 	while((chars_read = read(stream_socket, buf, BUFSIZ)) > 0) {
-		printf(buf);
+		printf("%s", buf);
 	}
 	
 	printf("The server has disconnected.\n");
